@@ -1,0 +1,19 @@
+SERVICE: wedding-organizer-service
+VERSION: 1.0.0
+ENVIRONMENT: development
+PORT: 8080
+DATABASE:
+  MYSQL:
+    HOST: localhost
+    PORT: 3306
+    USER: root
+    PASSWORD: password
+    NAME: wedding_organizer
+    MAX_CONNECTIONS: 10
+    MAX_IDLE_CONNECTIONS: 5
+    CONNECTION_TIMEOUT: 5
+    READ_TIMEOUT: 5
+    WRITE_TIMEOUT: 5
+    IDLE_TIMEOUT: 5
+    MAX_LIFETIME_CONNECTION: 5
+    MIGRATIONS_PATH: ./migrations
