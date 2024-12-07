@@ -2,6 +2,7 @@ package authentication
 
 import (
 	"context"
+	"fartech/wedding-organizer-service/internal/application_error"
 	"fartech/wedding-organizer-service/internal/model/request"
 	"fartech/wedding-organizer-service/internal/model/response"
 	"fartech/wedding-organizer-service/internal/repository"
@@ -19,10 +20,14 @@ type authenticationUsecase struct {
 // Login implements usecase.AuthenticationUsecase.
 func (a *authenticationUsecase) Login(ctx context.Context, req request.LoginRequest,
 ) (resp *response.LoginResponse, err error) {
-	_, err = a.userRepository.GetUserByEmail(req.Email)
+	user, err := a.userRepository.GetUserByEmail(req.Email)
 	if err != nil {
 		a.logger.Error(err.Error())
 		return nil, err
+	}
+
+	if user == nil {
+		return nil, application_error.NotFoundErr
 	}
 
 	token, err := uuid.NewV7()

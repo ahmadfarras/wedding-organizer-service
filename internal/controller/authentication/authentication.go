@@ -1,6 +1,7 @@
 package authentication
 
 import (
+	"fartech/wedding-organizer-service/internal/http"
 	"fartech/wedding-organizer-service/internal/model/request"
 	"fartech/wedding-organizer-service/internal/usecase"
 
@@ -34,11 +35,8 @@ func (a *AuthenticationController) Login(ctx fiber.Ctx) error {
 
 	resp, err := a.authenticationUsecase.Login(ctx.Context(), req)
 	if err != nil {
-		a.logger.Error(err.Error())
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return http.BuildErrorResponse(ctx, err)
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON(resp)
+	return http.BuildSuccessResponse(ctx, fiber.StatusOK, http.SuccessCode, http.SuccessMessage, resp)
 }

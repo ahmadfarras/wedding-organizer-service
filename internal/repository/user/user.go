@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"fartech/wedding-organizer-service/internal/model/domain"
 	"fartech/wedding-organizer-service/internal/repository"
 
@@ -18,6 +19,9 @@ func (u *UserRepository) GetUserByEmail(email string) (user *domain.User, err er
 	result := u.db.Take(&user, "email = ?", email)
 	if result.Error != nil {
 		u.logger.Error("failed to get user by email", zap.String("email", email), zap.Error(result.Error))
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, result.Error
 	}
 
