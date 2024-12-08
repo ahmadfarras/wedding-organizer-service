@@ -10,9 +10,12 @@ servers:
     url: https://localhost:8080/api
 tags:
   - name: Authentication
+  - name: User
 paths:
   /v1/auth/login:
     post:
+      description: Authenticate user with email and password. Return user, roles, and auth token if successful.
+      summary: Login user
       requestBody:
         required: true
         content:
@@ -26,6 +29,66 @@ paths:
                 password:
                   type: string
                   example: admin
+              required:
+                - email
+                - password
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponseSchema"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          name:
+                            type: string
+                            example: "John Doe"
+                          roles:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/RoleEnum"
+                          auth_token:
+                            type: string
+                            example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjEwZjQ"
+        400:
+          $ref: "#/components/responses/GenericBadRequestResponse"
+        404:
+          $ref: "#/components/responses/GenericNotFoundResponse"
+        422:
+          $ref: "#/components/responses/GenericValidationResponse"
+        500:
+          $ref: "#/components/responses/GenericServerErrorResponse"
+      tags:
+        - Authentication
+  /v1/auth/authenticate:
+    post:
+      description: Authenticate user with userID, role, and token from \login. Return token if successful.
+      summary: Authenticate user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                role:
+                  $ref: "#/components/schemas/RoleEnum"
+              required:
+                - userId
+                - role
       responses:
         200:
           description: OK
@@ -42,14 +105,104 @@ paths:
                           token:
                             type: string
                             example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNjEwZjQ"
+        400:
+          $ref: "#/components/responses/GenericBadRequestResponse"
+        401:
+          $ref: "#/components/responses/GenericUnauthorizedResponse"
+        403:
+          $ref: "#/components/responses/GenericForbiddenResponse"
+        404:
+          $ref: "#/components/responses/GenericNotFoundResponse"
+        422:
+          $ref: "#/components/responses/GenericValidationResponse"
+        500:
+          $ref: "#/components/responses/GenericServerErrorResponse"
+      tags:
+        - Authentication
+
+  /v1/users/{userId}:
+    get:
+      description: |-
+        Required permissions: `user:read:user`
+
+        Retrieve detailed information about a user by their unique ID. This includes user profile details, roles, and timestamps for creation and updates.
+      summary: Get user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/userId"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponseSchema"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          name:
+                            type: string
+                            example: "John Doe"
+                          roles:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/RoleEnum"
+                          username:
+                            type: string
+                            example: "admin"
+                          email:
+                            type: string
+                            format: email
+                          phone:
+                            type: string
+                            example: "08123456789"
+                          createdAt:
+                            type: string
+                            format: date-time
+                            example: "2021-08-01T00:00:00.000Z"
+                          updatedAt:
+                            type: string
+                            format: date-time
+                            example: "2021-08-01T00:00:00.000Z"
+                          createdBy:
+                            $ref: "#/components/schemas/AuthorSchema"
+                          updatedBy:
+                            $ref: "#/components/schemas/AuthorSchema"
+        401:
+          $ref: "#/components/responses/GenericUnauthorizedResponse"
+        403:
+          $ref: "#/components/responses/GenericForbiddenResponse"
         404:
           $ref: "#/components/responses/GenericNotFoundResponse"
         500:
           $ref: "#/components/responses/GenericServerErrorResponse"
       tags:
-        - Authentication
+        - User
+
 components:
   schemas:
+    AuthorSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "John Doe"
+    RoleEnum:
+      type: string
+      enum:
+        - ADMIN
+        - USER
+        - GUEST
     ErrorResponseSchema:
       type: object
       properties:
@@ -62,6 +215,17 @@ components:
         message:
           type: string
           description: Human-readable description of the response
+        descriptions:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Field name
+              message:
+                type: string
+                description: Error message
     SuccessResponseSchema:
       type: object
       properties:
@@ -73,6 +237,22 @@ components:
           type: string
           description: Human-readable description of the response
           example: Request performed successfully
+
+  parameters:
+    userId:
+      name: userId
+      in: path
+      description: User ID
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 
   responses:
     # Error responses
@@ -113,7 +293,7 @@ components:
             success:
               $ref: "#/components/examples/RequestSuccess"
     GenericNotFoundResponse:
-      description: Resource not found
+      description: The requested resource could not be found on the server
       content:
         application/json:
           schema:
@@ -121,6 +301,24 @@ components:
           examples:
             not_found:
               $ref: "#/components/examples/ResourceNotFoundError"
+    GenericValidationResponse:
+      description: The request was well-formed but was unable to be followed due to semantic errors
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponseSchema"
+          examples:
+            validation_error:
+              $ref: "#/components/examples/ValidationError"
+    GenericBadRequestResponse:
+      description: The server could not understand the request due to invalid syntax or missing required parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponseSchema"
+          examples:
+            bad_request:
+              $ref: "#/components/examples/BadRequestError"
 
   examples:
     InvalidCredentialError:
@@ -147,6 +345,22 @@ components:
         code: "43"
         error: INTERNAL_SERVER_ERROR
         message: Internal server error
+    ValidationError:
+      summary: Validation error
+      value:
+        code: "44"
+        error: VALIDATION_ERROR
+        message: Validation error
+        descriptions:
+          - field: email
+            message: Email is required
+    BadRequestError:
+      summary: Bad request
+      value:
+        code: "45"
+        error: BAD_REQUEST
+        message: Bad Request
+
     RequestSuccess:
       summary: Request performed successfully
       value:
